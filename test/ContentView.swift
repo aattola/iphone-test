@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Alamofire
+import SwiftKeychainWrapper
 
 struct Projekti: Decodable {
     var name: String
@@ -67,6 +68,10 @@ struct SheetView: View {
             switch response.result {
             case Result.success(let wResponse):
                 sid = wResponse.sid
+                
+                let _: Bool = KeychainWrapper.standard.set(name, forKey: "username")
+                let _: Bool = KeychainWrapper.standard.set(pass, forKey: "password")
+
                 dismiss()
                 
             case Result.failure(let virhe):
@@ -81,6 +86,17 @@ struct SheetView: View {
             Form {
                 TextField("Käyttäjätunnus", text: $nimi).onSubmit {
                     print("submit")
+                }.onAppear() {
+                    
+                    let username: String? = KeychainWrapper.standard.string(forKey: "username")
+                    let password: String? = KeychainWrapper.standard.string(forKey: "password")
+                    
+                    if (username != nil && password != nil) {
+                        nimi = username ?? ""
+                        salasana = password ?? ""
+                        
+                        kirjaudu(name: nimi, pass: salasana)
+                    }
                 }
                     .textContentType(.username)
                     .autocapitalization(.none)
@@ -111,12 +127,15 @@ struct ContentView: View {
     @State private var showingSheet = false
     @State var sid: String = ""
     @State var groups: GroupResponse = GroupResponse(currentGroups: [], futureGroups: [])
+    @State var isLoading = false
     
     func fetchGroups(sessionId: String) {
+        isLoading = true
         let params = SIDAuth(sid: sessionId)
     
         AF.request("https://lukkari.jeffe.co/api/v2/wilma/groups", method: .post, parameters: params).responseDecodable(of: GroupResponse.self) { response in
             
+            isLoading = false
             switch response.result {
             case Result.success(let ryhmat):
                 groups = ryhmat
@@ -131,6 +150,10 @@ struct ContentView: View {
             VStack {
                 List {
                     Section("Nyt") {
+                        if isLoading {
+                            ProgressView()
+                        }
+                        
                         ForEach (groups.currentGroups, id: \.CourseId) { ryhma in
                             NavigationLink(destination: GroupView(group: CustomGroup(Id: ryhma.Id, CourseCode: ryhma.CourseCode), sid: sid)) {
                                 HStack {
@@ -179,6 +202,8 @@ struct ContentView: View {
                             Button("Kirjaudu ulos") {
                                 sid = ""
                                 groups = GroupResponse(currentGroups: [], futureGroups: [])
+                                let _: Bool = KeychainWrapper.standard.removeObject(forKey: "username")
+                                let _: Bool = KeychainWrapper.standard.removeObject(forKey: "password")
                                 showingSheet.toggle()
                             }
                         }

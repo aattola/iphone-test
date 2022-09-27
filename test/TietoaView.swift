@@ -31,8 +31,9 @@ struct GenericLukkariResponse: Decodable {
 }
 
 struct ToinenSivu: View {
-    var sid: String
+    @State var sid: String
     @State var info: GenericVammainenLukkariResponse = GenericVammainenLukkariResponse(ok: false)
+    @State var nappulanTeksti = "Kopioi SID"
     
     func getWilmaInfo(sid: String) throws {
         let params = SIDAuth(sid: sid)
@@ -54,8 +55,6 @@ struct ToinenSivu: View {
     
     var body: some View {
         VStack {
-            
-            
             if !info.ok {
                 ProgressView().onAppear() {
                     do {
@@ -69,7 +68,32 @@ struct ToinenSivu: View {
                     Text(info.data!.Name)
                     Text(info.data!.School)
                     Text(String(info.data!.PrimusId))
-                    
+                    VStack {
+                        TextField(sid, text: $sid).padding()
+                        Button(nappulanTeksti) {
+                            nappulanTeksti = "Kopioitu"
+                            UIPasteboard.general.string = sid
+                            
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                nappulanTeksti = "Kopioi SID"
+                            }
+                        }
+                    }
+                    HStack {
+                        Text("BuildID")
+                        Spacer()
+                        Text(String(Bundle.main.buildVersionNumber ?? "Ei ole??"))
+                    }
+                    HStack {
+                        Text("Versio")
+                        Spacer()
+                        Text(Bundle.main.releaseVersionNumberPretty)
+                    }
+                    if info.data?.PrimusId == 40349 {
+                        NavigationLink(destination: AdminView()) {
+                            Text("Admin")
+                        }
+                    }
                 }.navigationTitle("Tietoja")
             }
             
